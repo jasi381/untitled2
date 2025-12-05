@@ -31,6 +31,7 @@ app.post('/api/verify-recaptcha', async (req, res) => {
     if (!token) {
       return res.status(400).json({
         success: false,
+        score: null,
         message: 'reCAPTCHA token is required'
       });
     }
@@ -41,6 +42,7 @@ app.post('/api/verify-recaptcha', async (req, res) => {
       console.error('RECAPTCHA_SECRET_KEY is not configured');
       return res.status(500).json({
         success: false,
+        score: null,
         message: 'Server configuration error'
       });
     }
@@ -70,7 +72,10 @@ app.post('/api/verify-recaptcha', async (req, res) => {
     } else {
       return res.json({
         success: false,
-        score: score,
+        score: score || null,
+        action: action || null,
+        timestamp: challenge_ts || null,
+        hostname: hostname || null,
         message: 'Verification failed - score too low or invalid token'
       });
     }
@@ -79,6 +84,7 @@ app.post('/api/verify-recaptcha', async (req, res) => {
     console.error('reCAPTCHA verification error:', error.message);
     return res.status(500).json({
       success: false,
+      score: null,
       message: 'Verification failed due to server error'
     });
   }
