@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>reCAPTCHA v3 Example</title>
+    <script src="https://www.google.com/recaptcha/api.js?render=YOUR_SITE_KEY_HERE"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .config-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+        .config-note code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>reCAPTCHA v3 Demo</h1>
+
+        <div class="config-note">
+            <strong>⚙️ Configuration Required:</strong><br>
+            1. Replace <code>YOUR_SITE_KEY_HERE</code> in the script tag with your actual site key<br>
+            2. Replace <code>YOUR_API_URL_HERE</code> in the script below with your deployed API URL
+        </div>
+
+        <form id="demoForm">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="message">Message:</label>
+                <textarea id="message" name="message" rows="4" required></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn">Submit Form</button>
+        </form>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const RECAPTCHA_SITE_KEY = 'YOUR_SITE_KEY_HERE'; // Replace with your site key
+        const API_URL = 'YOUR_API_URL_HERE'; // Replace with your deployed API URL
+
+        const form = document.getElementById('demoForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Verifying...';
+            resultDiv.style.display = 'none';
+
+            try {
+                // Get reCAPTCHA token
+                const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit' });
+                console.log('reCAPTCHA token obtained:', token.substring(0, 20) + '...');
+
+                // Verify with your API
+                const response = await fetch(`${API_URL}/api/verify-recaptcha`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token })
+                });
+
+                const result = await response.json();
+                console.log('Verification result:', result);
+
+                // Display result
+                resultDiv.style.display = 'block';
+
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Verification Successful!</strong>
+                        <div class="score">Score: ${(result.score * 100).toFixed(0)}%</div>
+                        <p>Action: ${result.action || 'N/A'}</p>
+                        <p>Hostname: ${result.hostname || 'N/A'}</p>
+                        <p><small>Timestamp: ${result.timestamp || 'N/A'}</small></p>
+                        <p><em>Form would be submitted to server now.</em></p>
+                    `;
+
+                    // Reset form after 3 seconds
+                    setTimeout(() => {
+                        form.reset();
+                        resultDiv.style.display = 'none';
+                    }, 5000);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <strong>❌ Verification Failed</strong>
+                        <div class="score">Score: ${result.score ? (result.score * 100).toFixed(0) + '%' : 'N/A'}</div>
+                        <p>${result.message || 'Unknown error occurred'}</p>
+                        <p><em>Please try again.</em></p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ Error</strong>
+                    <p>${error.message}</p>
+                    <p><em>Please check your API configuration.</em></p>
+                `;
+            } finally {
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Form';
+            }
+        });
+
+        // Show reCAPTCHA badge info
+        console.log('reCAPTCHA v3 loaded. The badge will appear in the bottom-right corner.');
+    </script>
+</body>
+</html>
