@@ -8,15 +8,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS configuration
+// CORS configuration - allow all origins for testing
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  methods: ['POST', 'GET'],
-  credentials: true
+  origin: true, // Allow all origins
+  methods: ['POST', 'GET', 'OPTIONS'],
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Serve static files (for test-token.html)
+app.use(express.static('.'));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -56,7 +60,10 @@ app.post('/api/verify-recaptcha', async (req, res) => {
       }
     });
 
-    const { success, score, action, challenge_ts, hostname } = response.data;
+    const { success, score, action, challenge_ts, hostname, 'error-codes': errorCodes } = response.data;
+
+    // Log Google's response for debugging
+    console.log('Google reCAPTCHA Response:', JSON.stringify(response.data, null, 2));
 
     // For reCAPTCHA v3, you can check the score (0.0 - 1.0)
     // Higher score means more likely to be human
